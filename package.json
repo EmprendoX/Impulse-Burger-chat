@@ -4,6 +4,7 @@
   "description": "IMPULSE Order Confirmation & Delivery Tracking System",
   "main": "dist/server.js",
   "scripts": {
+    "setup": "npm run prisma:generate && npm run prisma:migrate",
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",

@@ -47,6 +47,13 @@ Optional (for WhatsApp):
 
 ### 3. Setup Database
 
+Run the setup script to generate Prisma client and run migrations:
+
+```bash
+npm run setup
+```
+
+Or manually:
 ```bash
 # Generate Prisma client
 npm run prisma:generate
