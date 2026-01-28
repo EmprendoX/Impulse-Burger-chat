@@ -8,6 +8,7 @@ import { errorHandler } from './middleware/error.middleware';
 import ordersRoutes from './routes/orders.routes';
 import courierRoutes from './routes/courier.routes';
 import trackingRoutes from './routes/tracking.routes';
+import kitchenRoutes from './routes/kitchen.routes';
 import publicRoutes from './routes/public.routes';
 
 const app = express();
@@ -16,6 +17,24 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Root route
+app.get('/', (req, res) => {
+  res.json({
+    name: 'IMPULSE Order Confirmation & Delivery Tracking System',
+    version: '1.0.0',
+    status: 'running',
+    endpoints: {
+      health: '/health',
+      createOrder: 'POST /api/orders/paid',
+      courierLocation: 'POST /api/courier/location',
+      trackOrder: 'GET /api/track/:orderNumber?token=...',
+      customerTracking: 'GET /t/:orderNumber?token=...',
+      courierTracking: 'GET /c/:orderNumber?token=...',
+    },
+    documentation: 'See README.md for API documentation',
+  });
+});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -26,6 +45,7 @@ app.get('/health', (req, res) => {
 app.use('/api/orders', ordersRoutes);
 app.use('/api/courier', courierRoutes);
 app.use('/api/track', trackingRoutes);
+app.use('/api/kitchen', kitchenRoutes);
 
 // Public Routes (HTML pages)
 app.use('/', publicRoutes);
