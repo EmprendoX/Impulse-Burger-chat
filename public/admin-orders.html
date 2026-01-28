@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Pedidos - IMPULSE</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f6f7fb;
+      margin: 0;
+      padding: 24px;
+      color: #222;
+    }
+    h1 {
+      margin-bottom: 8px;
+    }
+    .panel {
+      background: #fff;
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+      margin-bottom: 16px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      margin-bottom: 8px;
+    }
+    button {
+      background: #4b6fff;
+      color: #fff;
+      border: 0;
+      padding: 10px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+      font-size: 14px;
+    }
+    th {
+      background: #f0f2f8;
+    }
+    .error {
+      color: #c62828;
+      font-size: 14px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Admin - Pedidos</h1>
+  <div class="panel">
+    <label for="apiKey">API Key (header x-admin-api-key)</label>
+    <input id="apiKey" type="password" placeholder="Ingresa la API key" />
+    <button onclick="loadOrders()">Cargar pedidos</button>
+    <div id="error" class="error"></div>
+  </div>
+
+  <table id="ordersTable" style="display: none;">
+    <thead>
+      <tr>
+        <th>Pedido</th>
+        <th>Cliente</th>
+        <th>Teléfono</th>
+        <th>Total</th>
+        <th>Pago</th>
+        <th>Status</th>
+        <th>Creado</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    const API_BASE = window.location.origin;
+
+    async function loadOrders() {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      const errorEl = document.getElementById('error');
+      errorEl.textContent = '';
+
+      if (!apiKey) {
+        errorEl.textContent = 'La API key es obligatoria.';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/api/orders?limit=50`, {
+          headers: {
+            'x-admin-api-key': apiKey,
+          },
+        });
+
+        const data = await response.json();
+
+        if (!data.ok) {
+          errorEl.textContent = data.error || 'No se pudieron cargar los pedidos.';
+          return;
+        }
+
+        renderOrders(data.orders || []);
+      } catch (error) {
+        console.error(error);
+        errorEl.textContent = 'Error de conexión al cargar pedidos.';
+      }
+    }
+
+    function renderOrders(orders) {
+      const table = document.getElementById('ordersTable');
+      const tbody = table.querySelector('tbody');
+      tbody.innerHTML = '';
+
+      if (!orders.length) {
+        table.style.display = 'none';
+        document.getElementById('error').textContent = 'Sin pedidos recientes.';
+        return;
+      }
+
+      orders.forEach(order => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${order.orderNumber}</td>
+          <td>${order.customerName}</td>
+          <td>${order.customerPhone}</td>
+          <td>$${order.total}</td>
+          <td>${order.paymentStatus}</td>
+          <td>${order.orderStatus}</td>
+          <td>${new Date(order.createdAt).toLocaleString()}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      table.style.display = 'table';
+    }
+  </script>
+</body>
+</html>

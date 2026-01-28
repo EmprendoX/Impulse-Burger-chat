@@ -24,6 +24,27 @@ export function validateOrderSecret(req: Request, res: Response, next: NextFunct
 }
 
 /**
+ * Validate admin API key from request headers
+ */
+export function validateAdminApiKey(req: Request, res: Response, next: NextFunction) {
+  const apiKey = req.headers['x-admin-api-key'];
+
+  if (!apiKey || apiKey !== env.ADMIN_API_KEY) {
+    logger.warn('Unauthorized admin access attempt', {
+      ip: req.ip,
+      hasApiKey: !!apiKey,
+    });
+
+    return res.status(401).json({
+      ok: false,
+      error: 'Unauthorized',
+    });
+  }
+
+  next();
+}
+
+/**
  * Validate courier token from request body
  */
 export async function validateCourierToken(req: Request, res: Response, next: NextFunction) {

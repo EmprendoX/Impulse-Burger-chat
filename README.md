@@ -39,11 +39,23 @@ cp .env.example .env
 
 Required:
 - `IMPULSE_ORDER_SECRET`: Secret key for order creation endpoint
+- `ADMIN_API_KEY`: API key for admin-only order dashboard
 
 Optional (for WhatsApp):
 - `WHATSAPP_ACCESS_TOKEN`: Meta WhatsApp Cloud API access token
 - `WHATSAPP_PHONE_NUMBER_ID`: Your WhatsApp phone number ID
 - `WHATSAPP_BUSINESS_ACCOUNT_ID`: Your WhatsApp business account ID
+
+#### Troubleshooting `.env` permission errors (EPERM)
+
+If `npm run prisma:generate` fails with `EPERM: operation not permitted, open '<path>/.env'`, the OS is blocking access to your `.env` file. Fix it by ensuring the file exists, is readable, and your terminal app has access:
+
+```bash
+ls -l .env
+chmod 600 .env
+```
+
+On macOS, also ensure your Terminal/iTerm has access to the project folder (System Settings → Privacy & Security → Files and Folders).
 
 ### 3. Setup Database
 
@@ -132,6 +144,21 @@ Response:
 }
 ```
 
+### List Orders (Admin only)
+
+**GET** `/api/orders?limit=50`
+
+Headers:
+- `x-admin-api-key`: Admin API key
+
+Response:
+```json
+{
+  "ok": true,
+  "orders": []
+}
+```
+
 ## Public Pages
 
 ### Customer Tracking
@@ -145,6 +172,12 @@ Displays a map with real-time courier location updates.
 **GET** `/c/:orderNumber?token=<courierToken>`
 
 Allows courier to share their GPS location automatically.
+
+### Admin Orders (Private)
+
+**GET** `/admin/orders`
+
+Requires entering the admin API key in the page to load orders.
 
 ## WhatsApp Templates
 

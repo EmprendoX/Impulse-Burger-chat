@@ -1,13 +1,29 @@
 import { Router, Request, Response } from 'express';
-import { validateOrderSecret } from '../middleware/auth.middleware';
+import { validateOrderSecret, validateAdminApiKey } from '../middleware/auth.middleware';
 import { validateOrderPayload } from '../middleware/validation.middleware';
-import { createOrUpdateOrder, hasEventBeenSent } from '../services/order.service';
+import { createOrUpdateOrder, hasEventBeenSent, listRecentOrders } from '../services/order.service';
 import { sendOrderConfirmation } from '../services/whatsapp.service';
 import { OrderEventType } from '../constants/order.constants';
 import { env } from '../config/env';
 import { logger } from '../utils/logger';
 
 const router = Router();
+
+router.get('/', validateAdminApiKey, async (req: Request, res: Response) => {
+  try {
+    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 50;
+    const orders = await listRecentOrders(safeLimit);
+
+    res.json({ ok: true, orders });
+  } catch (error: any) {
+    logger.error('Error listing orders:', error);
+    res.status(500).json({
+      ok: false,
+      error: 'Failed to fetch orders',
+    });
+  }
+});
 
 router.post(
   '/paid',

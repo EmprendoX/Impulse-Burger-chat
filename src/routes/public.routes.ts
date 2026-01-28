@@ -5,6 +5,19 @@ import { join } from 'path';
 const router = Router();
 
 /**
+ * Serve admin orders page
+ */
+router.get('/admin/orders', (req: Request, res: Response) => {
+  try {
+    const html = readFileSync(join(__dirname, '../../public/admin-orders.html'), 'utf-8');
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  } catch (error) {
+    res.status(500).send('Error loading admin orders page');
+  }
+});
+
+/**
  * Serve customer tracking page
  */
 router.get('/t/:orderNumber', (req: Request, res: Response) => {
