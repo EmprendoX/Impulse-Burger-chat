@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KitchenStats as KitchenStatsType } from '../../types/order.types';
+import type { KitchenStats as KitchenStatsType } from '../../types/order.types';
 import { orderService } from '../../services/orderService';
 import { Card } from '../ui/Card';
 import { Package, ChefHat, CheckCircle, Truck } from 'lucide-react';

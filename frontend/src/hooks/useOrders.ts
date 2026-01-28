@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Order, OrderStatus } from '../types/order.types';
+import type { Order, OrderStatus } from '../types/order.types';
 import { orderService } from '../services/orderService';
 import { usePolling } from './usePolling';
 

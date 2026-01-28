@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { OrderStatus } from '../types/order.types';
+import type { OrderStatus } from '../types/order.types';
 import { useOrders } from '../hooks/useOrders';
 import { orderService } from '../services/orderService';
 import { KitchenStats } from '../components/kitchen/KitchenStats';

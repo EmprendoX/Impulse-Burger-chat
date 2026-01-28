@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 
 export function usePolling(callback: () => void, interval: number = 5000) {
-  const savedCallback = useRef<() => void>();
+  const savedCallback = useRef<() => void>(callback);
 
   useEffect(() => {
     savedCallback.current = callback;
@@ -9,10 +9,12 @@ export function usePolling(callback: () => void, interval: number = 5000) {
 
   useEffect(() => {
     function tick() {
-      savedCallback.current?.();
+      savedCallback.current();
     }
 
-    const id = setInterval(tick, interval);
-    return () => clearInterval(id);
+    if (interval > 0) {
+      const id = setInterval(tick, interval);
+      return () => clearInterval(id);
+    }
   }, [interval]);
 }

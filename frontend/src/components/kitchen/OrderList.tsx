@@ -1,4 +1,4 @@
-import { Order, OrderStatus } from '../../types/order.types';
+import type { Order, OrderStatus } from '../../types/order.types';
 import { OrderCard } from './OrderCard';
 import { Loading } from '../ui/Loading';
 

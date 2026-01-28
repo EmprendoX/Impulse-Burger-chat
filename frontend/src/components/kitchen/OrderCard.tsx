@@ -1,9 +1,9 @@
-import { Order, OrderStatus } from '../../types/order.types';
+import type { Order, OrderStatus } from '../../types/order.types';
 import { Card } from '../ui/Card';
 import { OrderStatusBadge } from './OrderStatusBadge';
 import { OrderTimer } from './OrderTimer';
 import { Button } from '../ui/Button';
-import { formatCurrency, formatTime } from '../../utils/format';
+import { formatCurrency } from '../../utils/format';
 import { Phone, MapPin } from 'lucide-react';
 
 interface OrderCardProps {
