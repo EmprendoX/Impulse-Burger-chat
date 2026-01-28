@@ -3,7 +3,7 @@ import { prisma } from '../db/client';
 import { generateCustomerToken, generateCourierToken } from './token.service';
 import { normalizePhone } from '../utils/phone.util';
 import { logger } from '../utils/logger';
-import { OrderStatus, OrderEventType, OrderStatusType } from '../constants/order.constants';
+import { OrderStatus, OrderEventType, OrderStatusType, PaymentStatusType } from '../constants/order.constants';
 
 export interface CreateOrderData {
   orderNumber: string;
@@ -28,8 +28,8 @@ export interface OrderWithItems {
   customerPhone: string;
   customerToken: string;
   courierToken: string;
-  paymentStatus: string;
-  orderStatus: OrderStatus;
+  paymentStatus: PaymentStatusType;
+  orderStatus: OrderStatusType;
   total: string;
   paymentMethod: string;
   address: string;
