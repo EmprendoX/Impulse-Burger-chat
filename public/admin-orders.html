@@ -90,6 +90,13 @@
 
   <script>
     const API_BASE = window.location.origin;
+    const params = new URLSearchParams(window.location.search);
+    const keyFromQuery = params.get('key');
+
+    if (keyFromQuery) {
+      document.getElementById('apiKey').value = keyFromQuery;
+      loadOrders();
+    }
 
     async function loadOrders() {
       const apiKey = document.getElementById('apiKey').value.trim();

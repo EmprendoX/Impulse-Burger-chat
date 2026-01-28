@@ -175,9 +175,9 @@ Allows courier to share their GPS location automatically.
 
 ### Admin Orders (Private)
 
-**GET** `/admin/orders`
+**GET** `/admin/orders?key=<ADMIN_API_KEY>`
 
-Requires entering the admin API key in the page to load orders.
+Requires the admin API key in the query string to access the page. The page will use the same key to load orders.
 
 ## WhatsApp Templates
 
