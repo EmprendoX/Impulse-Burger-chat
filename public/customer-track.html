@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rastrear Pedido - IMPULSE</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: #f5f5f5;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .header {
+      background: #fff;
+      padding: 1rem;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      z-index: 1000;
+    }
+    
+    .header h1 {
+      font-size: 1.25rem;
+      color: #333;
+      margin-bottom: 0.25rem;
+    }
+    
+    .header .order-number {
+      font-size: 0.875rem;
+      color: #666;
+    }
+    
+    .status {
+      padding: 0.5rem 1rem;
+      background: #fff;
+      border-bottom: 1px solid #eee;
+      font-size: 0.875rem;
+      color: #666;
+    }
+    
+    .status.loading {
+      color: #999;
+    }
+    
+    .status.error {
+      color: #d32f2f;
+    }
+    
+    #map {
+      flex: 1;
+      width: 100%;
+      z-index: 1;
+    }
+    
+    .loading-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(255, 255, 255, 0.9);
+      padding: 1rem 2rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      z-index: 2000;
+      display: none;
+    }
+    
+    .loading-overlay.active {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Rastrear Pedido</h1>
+    <div class="order-number">Pedido: {{ORDER_NUMBER}}</div>
+  </div>
+  
+  <div class="status" id="status">Cargando ubicación...</div>
+  
+  <div id="map"></div>
+  
+  <div class="loading-overlay" id="loadingOverlay">
+    <div>Cargando...</div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const ORDER_NUMBER = '{{ORDER_NUMBER}}';
+    const TOKEN = '{{TOKEN}}';
+    const API_BASE = window.location.origin;
+    
+    let map;
+    let marker;
+    let lastLat = null;
+    let lastLng = null;
+    
+    // Initialize map (centered on Mexico City as default)
+    function initMap() {
+      map = L.map('map').setView([19.4326, -99.1332], 13);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(map);
+      
+      // Try to get initial location
+      fetchLocation();
+    }
+    
+    // Fetch location from API
+    async function fetchLocation() {
+      const statusEl = document.getElementById('status');
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      
+      try {
+        statusEl.textContent = 'Buscando ubicación del repartidor...';
+        statusEl.className = 'status loading';
+        
+        const response = await fetch(
+          `${API_BASE}/api/track/${ORDER_NUMBER}?token=${encodeURIComponent(TOKEN)}`
+        );
+        
+        const data = await response.json();
+        
+        if (data.ok && data.location) {
+          const { lat, lng, accuracy, updatedAt } = data.location;
+          
+          // Update marker position
+          if (marker) {
+            marker.setLatLng([lat, lng]);
+          } else {
+            // Create marker if it doesn't exist
+            marker = L.marker([lat, lng], {
+              icon: L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+              })
+            }).addTo(map);
+            
+            // Center map on marker
+            map.setView([lat, lng], 15);
+          }
+          
+          // Update status
+          const updated = new Date(updatedAt);
+          const now = new Date();
+          const diffSeconds = Math.floor((now - updated) / 1000);
+          
+          if (diffSeconds < 10) {
+            statusEl.textContent = 'Repartidor en movimiento';
+            statusEl.className = 'status';
+          } else if (diffSeconds < 30) {
+            statusEl.textContent = `Última actualización hace ${diffSeconds} segundos`;
+            statusEl.className = 'status';
+          } else {
+            statusEl.textContent = 'Esperando actualización de ubicación...';
+            statusEl.className = 'status';
+          }
+          
+          lastLat = lat;
+          lastLng = lng;
+        } else {
+          statusEl.textContent = 'Aún no hay ubicación disponible. El repartidor compartirá su ubicación pronto.';
+          statusEl.className = 'status';
+        }
+      } catch (error) {
+        console.error('Error fetching location:', error);
+        statusEl.textContent = 'Error al cargar la ubicación. Intentando de nuevo...';
+        statusEl.className = 'status error';
+      }
+    }
+    
+    // Poll for location updates every 5 seconds
+    initMap();
+    setInterval(fetchLocation, 5000);
+  </script>
+</body>
+</html>

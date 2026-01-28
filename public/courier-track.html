@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Compartir Ubicación - IMPULSE</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      text-align: center;
+    }
+    
+    .icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 1.5rem;
+      background: #667eea;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.5rem;
+      color: white;
+    }
+    
+    h1 {
+      font-size: 1.5rem;
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+    
+    .order-number {
+      font-size: 0.875rem;
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+    
+    .status {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+    }
+    
+    .status.active {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status.error {
+      background: #ffebee;
+      color: #c62828;
+    }
+    
+    .status.waiting {
+      background: #fff3e0;
+      color: #e65100;
+    }
+    
+    .info {
+      font-size: 0.875rem;
+      color: #666;
+      line-height: 1.6;
+      margin-top: 1rem;
+    }
+    
+    .button {
+      margin-top: 1.5rem;
+      padding: 0.75rem 1.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+    
+    .button:hover {
+      background: #5568d3;
+    }
+    
+    .button:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📍</div>
+    <h1>Compartir Ubicación</h1>
+    <div class="order-number">Pedido: {{ORDER_NUMBER}}</div>
+    
+    <div class="status waiting" id="status">
+      Solicitando permiso de ubicación...
+    </div>
+    
+    <div class="info" id="info">
+      Esta página compartirá tu ubicación automáticamente mientras esté abierta.
+    </div>
+    
+    <button class="button" id="retryButton" style="display: none;" onclick="startSharing()">
+      Reintentar
+    </button>
+  </div>
+
+  <script>
+    const ORDER_NUMBER = '{{ORDER_NUMBER}}';
+    const TOKEN = '{{TOKEN}}';
+    const API_BASE = window.location.origin;
+    
+    let watchId = null;
+    let isSharing = false;
+    
+    const statusEl = document.getElementById('status');
+    const infoEl = document.getElementById('info');
+    const retryButton = document.getElementById('retryButton');
+    
+    function updateStatus(message, type) {
+      statusEl.textContent = message;
+      statusEl.className = `status ${type}`;
+    }
+    
+    function sendLocation(lat, lng, accuracy) {
+      fetch(`${API_BASE}/api/courier/location`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderNumber: ORDER_NUMBER,
+          token: TOKEN,
+          lat,
+          lng,
+          accuracy,
+        }),
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.ok) {
+          updateStatus('✅ Ubicación compartida correctamente', 'active');
+          infoEl.textContent = `Última actualización: ${new Date().toLocaleTimeString()}`;
+        } else {
+          updateStatus('⚠️ Error al enviar ubicación', 'error');
+        }
+      })
+      .catch(error => {
+        console.error('Error sending location:', error);
+        updateStatus('⚠️ Error de conexión', 'error');
+      });
+    }
+    
+    function startSharing() {
+      if (isSharing) return;
+      
+      retryButton.style.display = 'none';
+      updateStatus('Solicitando permiso de ubicación...', 'waiting');
+      
+      if (!navigator.geolocation) {
+        updateStatus('❌ Tu navegador no soporta geolocalización', 'error');
+        retryButton.style.display = 'block';
+        return;
+      }
+      
+      // Request high accuracy
+      const options = {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      };
+      
+      // Get initial position
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, accuracy } = position.coords;
+          sendLocation(latitude, longitude, accuracy);
+          updateStatus('✅ Compartiendo ubicación...', 'active');
+          isSharing = true;
+          
+          // Watch position and send updates every 5 seconds
+          watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              const { latitude, longitude, accuracy } = position.coords;
+              sendLocation(latitude, longitude, accuracy);
+            },
+            (error) => {
+              console.error('Geolocation error:', error);
+              let message = 'Error al obtener ubicación';
+              
+              switch(error.code) {
+                case error.PERMISSION_DENIED:
+                  message = '❌ Permiso de ubicación denegado';
+                  break;
+                case error.POSITION_UNAVAILABLE:
+                  message = '⚠️ Ubicación no disponible';
+                  break;
+                case error.TIMEOUT:
+                  message = '⏱️ Tiempo de espera agotado';
+                  break;
+              }
+              
+              updateStatus(message, 'error');
+              isSharing = false;
+              if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+              }
+              retryButton.style.display = 'block';
+            },
+            options
+          );
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+          let message = 'Error al obtener ubicación';
+          
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              message = '❌ Permiso de ubicación denegado. Por favor, permite el acceso a la ubicación.';
+              break;
+            case error.POSITION_UNAVAILABLE:
+              message = '⚠️ Ubicación no disponible';
+              break;
+            case error.TIMEOUT:
+              message = '⏱️ Tiempo de espera agotado';
+              break;
+          }
+          
+          updateStatus(message, 'error');
+          retryButton.style.display = 'block';
+        },
+        options
+      );
+    }
+    
+    // Start sharing on page load
+    startSharing();
+    
+    // Cleanup on page unload
+    window.addEventListener('beforeunload', () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    });
+  </script>
+</body>
+</html>

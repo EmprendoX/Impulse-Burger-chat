@@ -1,0 +1,230 @@
+PRD — IMPULSE Order Chat, Tracking & Delivery System
+1. Overview
+Nombre del sistema:
+IMPULSE Order Confirmation & Delivery Tracking
+Propósito:
+Crear un sistema propio y confiable que permita:
+	• Confirmar pedidos automáticamente después del pago
+	• Comunicar el estado del pedido por WhatsApp
+	• Permitir seguimiento en tiempo real del repartidor
+	• Evitar fricción operativa en cocina y reparto
+	• Eliminar dependencia de n8n u otros parches
+Este sistema funciona como columna vertebral operativa de IMPULSE para delivery propio.
+
+2. Objetivos del producto
+Objetivos primarios
+	1. Confirmar pedidos automáticamente al recibir pago exitoso.
+	2. Enviar mensajes de confirmación y estado vía WhatsApp.
+	3. Proveer tracking en tiempo real tipo “Uber-like” sin app.
+	4. Separar claramente:
+		○ Cliente
+		○ Cocina
+		○ Repartidor
+Objetivos secundarios
+	• Evitar mensajes duplicados.
+	• Permitir escalar a múltiples cocinas.
+	• Mantener código claro y portable (Cursor-first).
+
+3. Usuarios y roles
+3.1 Cliente final
+	• Realiza pedido y paga.
+	• Recibe confirmación por WhatsApp.
+	• Puede seguir al repartidor en tiempo real.
+	• No interactúa con cocina directamente.
+3.2 Repartidor
+	• Recibe link único por pedido.
+	• Abre link desde su celular (sin app).
+	• Comparte ubicación GPS automáticamente.
+	• No ve datos sensibles del cliente.
+3.3 Sistema IMPULSE (backend)
+	• Valida pedidos.
+	• Genera tokens seguros.
+	• Controla estados.
+	• Envía mensajes WhatsApp.
+	• Expone tracking.
+
+4. Flujo general del sistema (alto nivel)
+Pago exitoso
+   ↓
+POST /api/orders/paid
+   ↓
+Crear / actualizar pedido
+   ↓
+Enviar WhatsApp confirmación (template)
+   ↓
+Repartidor abre link /c/:orderNumber
+   ↓
+GPS se envía cada pocos segundos
+   ↓
+Cliente ve mapa en /t/:orderNumber
+
+5. Componentes del sistema
+5.1 Backend
+	• Node.js + Express
+	• TypeScript
+	• Prisma ORM
+	• SQLite (dev) / PostgreSQL (prod)
+5.2 Frontend mínimo
+	• HTML + JS puro (sin frameworks)
+	• Leaflet + OpenStreetMap para mapas
+	• Web APIs (navigator.geolocation)
+5.3 Integraciones externas
+	• WhatsApp Cloud API (Meta)
+	• Proveedor de pagos (externo, no parte de este PRD)
+
+6. Endpoints (API)
+6.1 Crear / confirmar pedido
+Endpoint
+POST /api/orders/paid
+Headers
+x-impulse-secret: <IMPULSE_ORDER_SECRET>
+Body
+{
+  "orderNumber": "IMP-047",
+  "customer": {
+    "name": "Juan",
+    "phone": "+52 55 1234 5678"
+  },
+  "items": [
+    { "name": "Smash Burger", "qty": 2 },
+    { "name": "Papas", "qty": 1 }
+  ],
+  "total": "420",
+  "paymentStatus": "paid",
+  "paymentMethod": "online",
+  "address": "CDMX"
+}
+Resultado
+	• Crea pedido si no existe.
+	• Actualiza pedido si ya existe.
+	• Genera:
+		○ customerToken
+		○ courierToken
+	• Envía WhatsApp de confirmación (1 sola vez).
+	• Devuelve links de tracking.
+
+6.2 Recibir ubicación del repartidor
+Endpoint
+POST /api/courier/location
+Body
+{
+  "orderNumber": "IMP-047",
+  "token": "<courierToken>",
+  "lat": 19.3901,
+  "lng": -99.2456,
+  "accuracy": 12
+}
+Comportamiento
+	• Valida token.
+	• Guarda ubicación.
+	• Actualiza estado a ON_THE_WAY.
+	• Envía WhatsApp “va en camino” (1 sola vez).
+
+6.3 Tracking para cliente
+Endpoint
+GET /api/track/:orderNumber?token=<customerToken>
+Respuesta
+{
+  "ok": true,
+  "location": {
+    "lat": 19.39,
+    "lng": -99.24,
+    "accuracy": 12,
+    "updatedAt": "2026-01-27T18:42:00Z"
+  }
+}
+
+7. Rutas públicas (HTML)
+7.1 Tracking cliente
+GET /t/:orderNumber?token=...
+Función
+	• Mostrar mapa.
+	• Consultar /api/track cada 5 segundos.
+	• Mover marcador del repartidor.
+
+7.2 Tracking repartidor
+GET /c/:orderNumber?token=...
+Función
+	• Pedir permiso de ubicación.
+	• Enviar GPS automáticamente al backend.
+	• No requiere login ni app.
+
+8. WhatsApp (mensajería)
+8.1 Tipo de mensajes
+	• Business-initiated (empresa inicia)
+	• Requiere templates Utility aprobados
+
+8.2 Template: Confirmación de pedido
+Nombre
+impulse_order_confirm_v1
+Idioma
+es_MX
+Variables
+{{1}} = orderNumber
+{{2}} = total
+{{3}} = customerTrackingUrl
+Ejemplo
+	Pedido IMP-047 confirmado ✅
+	Total $420
+	Sigue tu pedido aquí:  https://impulse.mx/t/IMP-047?token=...
+
+8.3 Template: Pedido en camino
+Nombre
+impulse_on_the_way_v1
+Variables
+{{1}} = orderNumber
+{{2}} = customerTrackingUrl
+Ejemplo
+	Tu pedido IMP-047 va en camino 🚗
+	Síguelo aquí:  https://impulse.mx/t/IMP-047?token=...
+
+9. Seguridad
+9.1 Tokens
+	• Tokens aleatorios (hex).
+	• Separación:
+		○ customerToken
+		○ courierToken
+	• No reutilizables entre roles.
+9.2 Secretos
+	• IMPULSE_ORDER_SECRET obligatorio para crear pedidos.
+	• Evita llamadas externas no autorizadas.
+
+10. Idempotencia
+	• Cada evento WhatsApp se registra en tabla OrderEvent.
+	• Restricción única por:
+		○ (orderId, CONFIRM_SENT)
+		○ (orderId, ON_THE_WAY_SENT)
+	• Evita mensajes duplicados aunque el webhook se repita.
+
+11. Estados del pedido
+CONFIRMED → PREPARING → READY → ON_THE_WAY → DELIVERED
+Para este MVP, el sistema maneja automáticamente:
+	• CONFIRMED
+	• ON_THE_WAY
+Los demás pueden integrarse después.
+
+12. No-Goals (explícito)
+Este sistema NO incluye:
+	• Catálogo de productos
+	• Pagos
+	• Gestión de cocina
+	• App nativa
+	• Optimización de rutas
+	• Multi-repartidor por pedido
+
+13. Métricas clave (futuro)
+	• Tiempo entre pago y confirmación
+	• Tiempo de entrega
+	• % pedidos con tracking activo
+	• % errores de ubicación
+
+14. Estado del PRD
+Versión: 1.0
+Estado: Ready for implementation
+Plataforma objetivo: Cursor (Node + TS)
+
+Si quieres, el siguiente paso natural es:
+	• Convertir este PRD en un TASKLIST.md para Cursor
+	• O dividirlo en épicas / historias técnicas
+	• O preparar la versión multi-cocina
+Tú dime cómo quieres seguir, pero este PRD ya está listo para usarse tal cual.
